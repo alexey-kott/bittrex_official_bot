@@ -3,3 +3,4 @@ y1.py
 y2.py
 __pycache__/
 keys/
+db.sqlite3

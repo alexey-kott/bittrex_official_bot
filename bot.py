@@ -126,10 +126,12 @@ def get_default_keyboard():
 	one_month_btn = types.KeyboardButton(btn.one_month)
 	my_wallet_btn = types.KeyboardButton(btn.my_wallet)
 	my_balance_btn = types.KeyboardButton(btn.my_balance)
+	back_btn = types.KeyboardButton(btn.back)
 	keyboard.add(three_days_btn, one_week_btn)
 	keyboard.add(two_weeks_btn, one_month_btn)
 	keyboard.add(my_balance_btn)
 	keyboard.add(my_wallet_btn)
+	keyboard.add(back_btn)
 	return keyboard
 
 def get_access(u, t):
@@ -174,6 +176,16 @@ def one_month(u, m):
 def access(u, m):
 	bot.send_message(uid(m), msg.access_to_chat, reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
 
+def back(u,m):
+	keyboard = types.ReplyKeyboardMarkup(resize_keyboard = True)
+	free_signals_btn = types.KeyboardButton(btn.free_signals)
+	vip_signals_btn = types.KeyboardButton(btn.vip_signals)
+	my_balance_btn = types.KeyboardButton(btn.my_balance)
+	my_wallet_btn = types.KeyboardButton(btn.my_wallet)
+	keyboard.add(my_balance_btn)
+	keyboard.add(my_wallet_btn)
+	keyboard.add(free_signals_btn, vip_signals_btn)
+	bot.send_message(uid(m), msg.select_action, reply_markup = keyboard, parse_mode = 'Markdown')	
 
 
 
