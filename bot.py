@@ -225,8 +225,8 @@ def start(m):
 @bot.message_handler(content_types = ['text'])
 def action(m):
 	u = User.cog(uid(m), username = m.from_user.username, first_name = m.from_user.first_name, last_name = m.from_user.last_name)
-	r = Routing.select(Routing.btn, Routing.action).where(Routing.btn == m.text).get()
 	try:
+		r = Routing.select(Routing.btn, Routing.action).where(Routing.btn == m.text).get()
 		eval(r.action)(u, m)
 	except Exception as e:
 		print(e)
