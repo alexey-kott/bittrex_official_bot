@@ -92,6 +92,7 @@ class User(BaseModel):
 	def get_balance(self):
 		balance = block_io.get_address_balance(label = self.user_id)['data']['available_balance']
 		self.balance = balance 
+		self.save()
 		return float(balance)
 
 	def write_off_money(self, price):
