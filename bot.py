@@ -295,9 +295,8 @@ def new_member(m):
 
 @bot.message_handler(content_types = ['text'])
 def action(m):
-	print(m)
-	# print(m.from_user.username)
-	# print(m.text, end="\n\n")
+	print(m.from_user.username)
+	print(m.text, end="\n\n")
 	# bot.send_message(sid(m), m.text)
 	u = User.cog(uid(m), username = m.from_user.username, first_name = m.from_user.first_name, last_name = m.from_user.last_name)
 	try:
