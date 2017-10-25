@@ -4,6 +4,7 @@ from multiprocessing import Process
 from time import sleep
 import re
 import datetime
+import locale
 from telebot import types
 from peewee import *
 from playhouse.sqlite_ext import *
@@ -13,11 +14,17 @@ from config import price
 from config import period
 from block_io import BlockIo
 import strings as s
-from models import Btn, Msg, Routing
+from models import Btn, Msg, Routing, Message, Error # Msg -- тексты сообщений бота, Message -- для логирования всех сообщений, но это пока не работает
+import pymorphy2
+from multiprocessing import Process
 
+
+locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
 
 bot = telebot.TeleBot(cfg.token)
 db = SqliteDatabase('db.sqlite3')
+
+morph = pymorphy2.MorphAnalyzer() # объект для морфологического преобразования слов
 
 sid = lambda m: m.chat.id # лямбды для определения адреса ответа
 uid = lambda m: m.from_user.id
@@ -30,31 +37,27 @@ msg = Msg() # это для строк. Сообщения и Кнопки.
 # r = Routing()
 btn = Btn()
 
+# группа для добавления
+# private_chat_id = -1001133792524
+private_chat_id = -1001133437730
+private_chat_link = "https://t.me/joinchat/AFktb0OO4yKhe5B9V6j_Bg"
+# admins = {5844335, 322187251} # AlexKott, Wine_cellars
+admins = {5844335}
+
+
 
 class BaseModel(Model):
 	class Meta:
 		database = db
 
 
-# class Routing(BaseModel):
-# 	state 		= TextField()
-# 	decision 	= TextField() # соответствует либо атрибуту data в инлайн кнопках, 
-# 							  # либо специальному значению text, которое соответствует любому текстовому сообщению
-# 	action		= TextField()
-
-# 	def __init__(self, m):
-# 		pass
-
-
-# 	class Meta:
-# 		primary_key = CompositeKey('state', 'decision')		
 
 class User(BaseModel):
 	user_id 	 = IntegerField(primary_key = True)
 	username 	 = TextField(null = True)
 	first_name   = TextField(null = True)
 	last_name	 = TextField(null = True)
-	state 		 = TextField(default = s.default)
+	state 		 = TextField(default = 'default')
 	wallet		 = TextField(null = True)
 	balance 	 = DoubleField(default = 0) 
 	limit_date	 = DateTimeField(null = True)
@@ -87,35 +90,49 @@ class User(BaseModel):
 			return self.wallet
 
 	def get_balance(self):
-		return block_io.get_address_balance(label = self.user_id)['data']['available_balance']
+		balance = block_io.get_address_balance(label = self.user_id)['data']['available_balance']
+		self.balance = balance 
+		return float(balance)
 
 	def write_off_money(self, price):
-		if self.balance > price:
-			self.balance -= price
+		self.get_balance()
+		if float(self.balance) > float(price): 
+			self.balance = self.get_balance()
+			r = block_io.withdraw_from_labels(amounts = price, from_labels = self.user_id, to_labels = 'default')
+			print(r)
 			self.save()
 			return True
 		
 		return False
 
-	def access_to_chat(self, t):
-		self.limit_date += period[t]
+	def get_access(self, t):
+		if self.write_off_money(price[t]):
+			if self.limit_date == None:
+				now = datetime.datetime.now()
+				now = now.replace(microsecond = 0)
+				self.limit_date = now
+			self.limit_date += period[t]
+			self.save()
+			return True
+		return False
+
+	def kick_chat(self):
+		self.limit_date = None
 		self.save()
-		
+		bot.kick_chat_member(private_chat_id, self.user_id)
+
+	def has_access(self):
+		now = datetime.datetime.now()
+		if self.limit_date == None:
+			return False 
+		elif now > self.limit_date:
+			return False
+		return True
 
 
 
 
-class Message(BaseModel):
-	sender		= IntegerField()
-	text 		= TextField()
-	msg_type	= TextField()
-	timestamp	= DateTimeField(default = datetime.datetime.utcnow)
 
-class Error(BaseModel):
-	message 	= TextField()
-	state		= TextField()
-	exception 	= TextField()
-	timestamp	= DateTimeField(default = datetime.datetime.utcnow)
 
 # functions
 def get_default_keyboard():
@@ -134,9 +151,7 @@ def get_default_keyboard():
 	keyboard.add(back_btn)
 	return keyboard
 
-def get_access(u, t):
-	if u.write_off_money(price[t]):
-		u.access_to_chat(t)
+
 
 
 # messages
@@ -157,21 +172,63 @@ def my_wallet(u, m):
 	bot.send_message(uid(m), msg.my_wallet, parse_mode = 'Markdown')
 	bot.send_message(uid(m), msg.wallet_address.format(u.get_wallet()), reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
 
+
+
+
 def three_days(u, m):
-	bot.send_message(uid(m), msg.repare, reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
-	get_access(u, '3_days')
+	if u.get_access('3_days'):
+		block_datetime = u.limit_date
+		d = block_datetime.strftime("%-d")
+		m = morph.parse(block_datetime.strftime("%B"))[0].inflect({'gent'}).word
+		t = block_datetime.strftime("%H:%m")
+		bot.send_message(u.user_id, msg.access_granted.format(d, m, t), reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
+		bot.unban_chat_member(private_chat_id, u.user_id)
+		bot.restrict_chat_member(private_chat_id, u.user_id, can_send_messages = False, can_send_media_messages=False, can_send_other_messages=False)
+	else:
+		bot.send_message(u.user_id, msg.not_enough_money, reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
+
 
 def one_week(u, m):
-	bot.send_message(uid(m), msg.repare, reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
-	get_access(u, '1_week')
+	if u.get_access('1_week'):
+		block_datetime = u.limit_date
+		d = block_datetime.strftime("%-d")
+		m = morph.parse(block_datetime.strftime("%B"))[0].inflect({'gent'}).word
+		t = block_datetime.strftime("%H:%m")
+		bot.send_message(u.user_id, msg.access_granted.format(d, m, t), reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
+		bot.unban_chat_member(private_chat_id, u.user_id)
+		bot.restrict_chat_member(private_chat_id, u.user_id, can_send_messages = False, can_send_media_messages=False, can_send_other_messages=False)
+	else:
+		bot.send_message(u.user_id, msg.not_enough_money, reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
+
 
 def two_weeks(u, m):
-	get_access(u, '2_weeks')
-	bot.send_message(uid(m), msg.repare, reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
+	if u.get_access('2_weeks'):
+		block_datetime = u.limit_date
+		d = block_datetime.strftime("%-d")
+		m = morph.parse(block_datetime.strftime("%B"))[0].inflect({'gent'}).word
+		t = block_datetime.strftime("%H:%m")
+		bot.send_message(u.user_id, msg.access_granted.format(d, m, t), reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
+		bot.unban_chat_member(private_chat_id, u.user_id)
+		bot.restrict_chat_member(private_chat_id, u.user_id, can_send_messages = False, can_send_media_messages=False, can_send_other_messages=False)
+	else:
+		bot.send_message(u.user_id, msg.not_enough_money, reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
+
 
 def one_month(u, m):
-	bot.send_message(uid(m), msg.repare, reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
-	get_access(u, '1_month')
+	if u.get_access('1_month'):
+		block_datetime = u.limit_date
+		d = block_datetime.strftime("%-d")
+		m = morph.parse(block_datetime.strftime("%B"))[0].inflect({'gent'}).word
+		t = block_datetime.strftime("%H:%m")
+		bot.send_message(u.user_id, msg.access_granted.format(d, m, t), reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
+		bot.unban_chat_member(private_chat_id, u.user_id)
+		bot.restrict_chat_member(private_chat_id, u.user_id, can_send_messages = False, can_send_media_messages=False, can_send_other_messages=False)
+	else:
+		bot.send_message(u.user_id, msg.not_enough_money, reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
+
+
+
+
 
 def access(u, m):
 	bot.send_message(uid(m), msg.access_to_chat, reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
@@ -220,10 +277,28 @@ def start(m):
 	bot.send_message(uid(m), msg.start, reply_markup = keyboard, parse_mode = "Markdown")
 	
 
+@bot.message_handler(content_types = ['new_chat_members'])
+def new_member(m):
+	print(m.from_user.username)
+	user_id = m.new_chat_member.id
+	if user_id in admins:
+		return True
+	try:
+		u = User.select().where(User.user_id == user_id).get()
+		if not u.has_access():
+			raise
+	except:
+		bot.kick_chat_member(private_chat_id, user_id)
+
+
 
 
 @bot.message_handler(content_types = ['text'])
 def action(m):
+	print(m)
+	# print(m.from_user.username)
+	# print(m.text, end="\n\n")
+	# bot.send_message(sid(m), m.text)
 	u = User.cog(uid(m), username = m.from_user.username, first_name = m.from_user.first_name, last_name = m.from_user.last_name)
 	try:
 		r = Routing.select(Routing.btn, Routing.action).where(Routing.btn == m.text).get()
@@ -246,33 +321,23 @@ def action(m):
 	# 	Error.create(message = m.text, state = u.state, exception = e)
 	# 	print(e)
 
-
-@bot.callback_query_handler(func=lambda call: True)
-def clbck(c):
-	print(c)
-	return
-	u = User.cog(user_id = cid(c))
-	Message.create(sender = cid(c), text = c.data, msg_type = "clbck")
-	try:
-		r = Routing.get(state = u.state, decision = c.data)
-		keyboard = types.ReplyKeyboardMarkup()
-		bot.edit_message_reply_markup(chat_id = cid(c), message_id = c.message.message_id, reply_markup = keyboard)
-		bot.answer_callback_query(callback_query_id = c.id, show_alert = True)
-
-		try: # на случай если action не определён в таблице роутинга
-			# print(u.state)
-			# print(c.data)
-			# print(r.action)
-			eval(r.action)(u = u, c = c)
-		except Exception as e:
-			Error.create(message = c.data, state = u.state, exception = e)
-			print(e)
-			print(s.action_not_defined)
-	except Exception as e:
-		Error.create(message = c.data, state = u.state, exception = e)
-		print(e)	
-
+class Watcher:
+	def __call__(self):
+		while True:
+			now = datetime.datetime.now()
+			now = now.replace(microsecond = 0)
+			for user in User.select():
+				if user.limit_date == now:
+					try:
+						user.kick_chat()
+						bot.send_message(user.user_id, msg.subscription_ended)
+					except Exception as e:
+						print(e)
+			sleep(1)
 
 
 if __name__ == '__main__':
+	watcher = Watcher()
+	w = Process(target = watcher)
+	w.start()
 	bot.polling(none_stop=True)
