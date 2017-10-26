@@ -10,8 +10,7 @@ from peewee import *
 from playhouse.sqlite_ext import *
 from playhouse.shortcuts import model_to_dict, dict_to_model # для сериализации peewee-объектов во время логирования ошибок
 import config as cfg 
-from config import price
-from config import period
+from config import price, period, admins, private_chat_id, private_chat_link
 from block_io import BlockIo
 import strings as s
 from models import Btn, Msg, Routing, Message, Error # Msg -- тексты сообщений бота, Message -- для логирования всех сообщений, но это пока не работает
@@ -37,12 +36,7 @@ msg = Msg() # это для строк. Сообщения и Кнопки.
 # r = Routing()
 btn = Btn()
 
-# группа для добавления
-# private_chat_id = -1001133792524
-private_chat_id = -1001133437730
-private_chat_link = "https://t.me/joinchat/AFktb0OO4yKhe5B9V6j_Bg"
-# admins = {5844335, 322187251} # AlexKott, Wine_cellars
-admins = {5844335}
+
 
 
 
