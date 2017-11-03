@@ -1,6 +1,6 @@
+db.sqlite3
 config.py
 y1.py
 y2.py
 __pycache__/
 keys/
-db.sqlite3
