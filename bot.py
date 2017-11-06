@@ -344,8 +344,8 @@ def new_member(m):
 
 @bot.message_handler(content_types = ['text'])
 def action(m):
-	# print(m.from_user.username)
-	# print(m.text, end="\n\n")
+	print(m.from_user.username)
+	print(m.text, end="\n\n")
 	u = User.cog(m)
 	if is_invitation(m):
 		invited_user = User.get(User.user_id == User.invite_from(m))
@@ -359,21 +359,7 @@ def action(m):
 	except Exception as e:
 		# print(e)
 		pass
-	# u = User.cog(user_id = uid(m))
-	# bot.send_message(uid(m), msg.start, reply_markup = get_default_keyboard(), parse_mode = "Markdown")
-	
-	# Message.create(sender = uid(m), text = m.text, msg_type = "text")
-	# try:
-	# 	r = Routing.get(state = u.state, decision = 'text')
-	# 	try: # на случай если action не определён в таблице роутинга
-	# 		eval(r.action)(u = u, m = m)
-	# 	except Exception as e:
-	# 		Error.create(message = m.text, state = u.state, exception = e)
-	# 		print(e)
-	# 		print(m)
-	# except Exception as e:
-	# 	Error.create(message = m.text, state = u.state, exception = e)
-	# 	print(e)
+
 
 class Watcher:
 	def __call__(self):
@@ -397,10 +383,9 @@ if __name__ == '__main__':
 	watcher = Watcher()
 	w = Process(target = watcher)
 	w.start()
-	bot.polling(none_stop=True)
-	# while True:
-	# 	try:
-	# 		bot.polling(none_stop=True)
-	# 	except Exception as e:
-	# 		print(e)
-	# 		sleep(3.5)
+	while True:
+		try:
+			bot.polling(none_stop=True)
+		except Exception as e:
+			print(e)
+			sleep(3.5)
