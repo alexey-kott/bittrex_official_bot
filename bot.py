@@ -1,21 +1,24 @@
+import locale
+from time import sleep
+import datetime
+import re
+from multiprocessing import Process
+
 import sqlite3 as sqlite
 import telebot
-from multiprocessing import Process
-from time import sleep
-import re
-import datetime
-import locale
 from telebot import types
 from peewee import *
 from playhouse.sqlite_ext import *
 from playhouse.shortcuts import model_to_dict, dict_to_model # для сериализации peewee-объектов во время логирования ошибок
-import config as cfg 
-from config import price, period, admins, private_chat_id, private_chat_link
 from block_io import BlockIo
-import strings as s
 from models import Btn, Msg, Routing, Message, Error # Msg -- тексты сообщений бота, Message -- для логирования всех сообщений, но это пока не работает
 import pymorphy2
-from multiprocessing import Process
+from hashlib import sha1
+
+from functions import *
+import strings as s
+import config as cfg 
+from config import price, period, admins, private_chat_id, private_chat_link
 
 
 locale.setlocale(locale.LC_ALL, 'ru_RU.UTF-8')
@@ -55,17 +58,30 @@ class User(BaseModel):
 	wallet		 = TextField(null = True)
 	balance 	 = DoubleField(default = 0) 
 	limit_date	 = DateTimeField(null = True)
+	referal_link = TextField(null = True)
+	refer_users  = IntegerField(default = 0)
+	invited_user = IntegerField(default = 0)
+	discount 	 = IntegerField(default = 0)
 
 
-	def cog(user_id, username = '', first_name = '', last_name = ''):
+	def cog(m):
+		username = m.from_user.username
+		first_name = m.from_user.first_name
+		last_name = m.from_user.last_name
 		try:
 			with db.atomic():
-				u = User.create(user_id = user_id, username = username, first_name = first_name, last_name = last_name)
+				u = User.create(user_id = uid(m), 
+								username = username, 
+								first_name = first_name, 
+								last_name = last_name
+								)
 				u.wallet = u.get_wallet()
+				u.referal_link = u.gen_referal()
 				u.save()
 				return u
 		except Exception as e:
-			return User.select().where(User.user_id == user_id).get()
+			return User.select().where(User.user_id == uid(m)).get()
+			
 				
 
 	def new_wallet(self, user_id):
@@ -91,9 +107,12 @@ class User(BaseModel):
 
 	def write_off_money(self, price):
 		self.get_balance()
+		discount = calc_discount_by_invited(self.refer_users)
+		total = (100 - discount) * price / 100
 		if float(self.balance) > float(price): 
 			self.balance = self.get_balance()
-			r = block_io.withdraw_from_labels(amounts = price, from_labels = self.user_id, to_labels = 'default')
+			self.refer_users = 0
+			r = block_io.withdraw_from_labels(amounts = total, from_labels = self.user_id, to_labels = 'default')
 			print(r)
 			self.save()
 			return True
@@ -124,6 +143,34 @@ class User(BaseModel):
 			return False
 		return True
 
+	def gen_referal(self):
+		user_id = str(self.user_id)
+		user_id = user_id.encode('utf-8')
+		user_id_hash = sha1(user_id).hexdigest()
+		return "rl_{}".format(user_id_hash)
+
+	@staticmethod
+	def invite_from(m):
+		rl_tokens = re.findall(r'(?<=\s)rl\w+(?=\s?)', m.text)
+		if not rl_tokens:
+			return 0
+		rl_token = rl_tokens[0]
+		invited_user = User.select().where(User.referal_link == rl_token).get()
+		return invited_user.user_id
+
+	def set_invited_user(self, user_id):
+		if not self.invited_user:
+			self.invited_user = user_id
+			self.save()
+			invited_user = User.get(User.user_id == user_id)
+			# invited_user.refer_users = User.select(fn.Count(User.user_id)).where(User.invited_user == user_id).scalar()
+			invited_user.refer_users += 1
+			invited_user.discount = calc_discount_by_invited(invited_user.refer_users)
+			invited_user.save()
+			return True
+		return False
+
+
 
 
 
@@ -138,11 +185,13 @@ def get_default_keyboard():
 	one_month_btn = types.KeyboardButton(btn.one_month)
 	my_wallet_btn = types.KeyboardButton(btn.my_wallet)
 	my_balance_btn = types.KeyboardButton(btn.my_balance)
+	referal_btn = types.KeyboardButton(btn.referal)
 	back_btn = types.KeyboardButton(btn.back)
 	keyboard.add(three_days_btn, one_week_btn)
 	keyboard.add(two_weeks_btn, one_month_btn)
 	keyboard.add(my_balance_btn)
 	keyboard.add(my_wallet_btn)
+	keyboard.add(referal_btn)
 	keyboard.add(back_btn)
 	return keyboard
 
@@ -160,7 +209,7 @@ def vip_signals(u, m):
 
 
 def my_balance(u, m):
-	bot.send_message(uid(m), msg.my_balance.format(u.get_balance()), reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
+	bot.send_message(uid(m), msg.my_balance.format(u.get_balance(), u.discount), reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
 
 
 def my_wallet(u, m):
@@ -222,6 +271,10 @@ def one_month(u, m):
 		bot.send_message(u.user_id, msg.not_enough_money, reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
 
 
+def referal(u, m):
+	bot.send_message(uid(m), msg.referal_manual, parse_mode = "Markdown")
+	bot.send_message(uid(m), msg.referal_message.format(u.referal_link))
+
 
 
 
@@ -259,22 +312,23 @@ def init(m):
 
 @bot.message_handler(commands = ['start'])
 def start(m):
-	u = User.cog(uid(m), username = m.from_user.username, first_name = m.from_user.first_name, last_name = m.from_user.last_name)
+	u = User.cog(m)
 
 	keyboard = types.ReplyKeyboardMarkup(resize_keyboard = True)
 	free_signals_btn = types.KeyboardButton(btn.free_signals)
 	vip_signals_btn = types.KeyboardButton(btn.vip_signals)
 	my_balance_btn = types.KeyboardButton(btn.my_balance)
 	my_wallet_btn = types.KeyboardButton(btn.my_wallet)
+	referal_btn = types.KeyboardButton(btn.referal)
 	keyboard.add(my_balance_btn)
 	keyboard.add(my_wallet_btn)
+	keyboard.add(referal_btn)
 	keyboard.add(free_signals_btn, vip_signals_btn)
 	bot.send_message(uid(m), msg.start, reply_markup = keyboard, parse_mode = "Markdown")
 	
 
 @bot.message_handler(content_types = ['new_chat_members'])
 def new_member(m):
-	print(m.from_user.username)
 	user_id = m.new_chat_member.id
 	if user_id in admins:
 		return True
@@ -290,15 +344,21 @@ def new_member(m):
 
 @bot.message_handler(content_types = ['text'])
 def action(m):
-	print(m.from_user.username)
-	print(m.text, end="\n\n")
-	# bot.send_message(sid(m), m.text)
-	u = User.cog(uid(m), username = m.from_user.username, first_name = m.from_user.first_name, last_name = m.from_user.last_name)
+	# print(m.from_user.username)
+	# print(m.text, end="\n\n")
+	u = User.cog(m)
+	if is_invitation(m):
+		invited_user = User.get(User.user_id == User.invite_from(m))
+		if u.set_invited_user(invited_user.user_id):
+			bot.send_message(uid(m), msg.your_invited_user.format(invited_user.username), parse_mode = 'Markdown')
+		else:
+			bot.send_message(uid(m), msg.already_invited.format(invited_user.username), parse_mode = 'Markdown')
 	try:
 		r = Routing.select(Routing.btn, Routing.action).where(Routing.btn == m.text).get()
 		eval(r.action)(u, m)
 	except Exception as e:
-		print(e)
+		# print(e)
+		pass
 	# u = User.cog(user_id = uid(m))
 	# bot.send_message(uid(m), msg.start, reply_markup = get_default_keyboard(), parse_mode = "Markdown")
 	
@@ -320,13 +380,16 @@ class Watcher:
 		while True:
 			now = datetime.datetime.now()
 			now = now.replace(microsecond = 0)
-			for user in User.select():
-				if user.limit_date == now:
-					try:
-						user.kick_chat()
-						bot.send_message(user.user_id, msg.subscription_ended)
-					except Exception as e:
-						print(e)
+			try:
+				for user in User.select():
+					if user.limit_date == now:
+						try:
+							user.kick_chat()
+							bot.send_message(user.user_id, msg.subscription_ended)
+						except Exception as e:
+							print(e)
+			except:
+				pass
 			sleep(1)
 
 
@@ -334,9 +397,10 @@ if __name__ == '__main__':
 	watcher = Watcher()
 	w = Process(target = watcher)
 	w.start()
-	while True:
-		try:
-			bot.polling(none_stop=True)
-		except Exception as e:
-			print(e)
-			sleep(3.5)
+	bot.polling(none_stop=True)
+	# while True:
+	# 	try:
+	# 		bot.polling(none_stop=True)
+	# 	except Exception as e:
+	# 		print(e)
+	# 		sleep(3.5)

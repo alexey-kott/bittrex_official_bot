@@ -3,6 +3,7 @@ INSERT INTO routing VALUES
 	('default','vip_signals','vip_signals'),
 	('default','my_balance','my_balance'),
 	('default','my_wallet','my_wallet'),
+	('default','referal','referal'),
 	('default','one_day','access'),
 	('default','three_days','access'),
 	('default','one_week','access'),
