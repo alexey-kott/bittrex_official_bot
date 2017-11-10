@@ -183,14 +183,12 @@ def get_default_keyboard():
 	one_week_btn = types.KeyboardButton(btn.one_week)
 	two_weeks_btn = types.KeyboardButton(btn.two_weeks)
 	one_month_btn = types.KeyboardButton(btn.one_month)
-	my_wallet_btn = types.KeyboardButton(btn.my_wallet)
-	my_balance_btn = types.KeyboardButton(btn.my_balance)
+	balance_and_wallet_btn = types.KeyboardButton(btn.balance_and_wallet)
 	referal_btn = types.KeyboardButton(btn.referal)
 	back_btn = types.KeyboardButton(btn.back)
 	keyboard.add(three_days_btn, one_week_btn)
 	keyboard.add(two_weeks_btn, one_month_btn)
-	keyboard.add(my_balance_btn)
-	keyboard.add(my_wallet_btn)
+	keyboard.add(balance_and_wallet_btn)
 	keyboard.add(referal_btn)
 	keyboard.add(back_btn)
 	return keyboard
@@ -212,9 +210,8 @@ def my_balance(u, m):
 	bot.send_message(uid(m), msg.my_balance.format(u.get_balance(), u.discount), reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
 
 
-def my_wallet(u, m):
-	bot.send_message(uid(m), msg.my_wallet, parse_mode = 'Markdown')
-	bot.send_message(uid(m), msg.wallet_address.format(u.get_wallet()), reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
+def balance_and_wallet(u, m):
+	bot.send_message(uid(m), msg.balance_and_wallet.format(u.get_wallet(), u.get_balance(), u.discount), parse_mode = 'Markdown')
 
 
 
@@ -285,10 +282,8 @@ def back(u,m):
 	keyboard = types.ReplyKeyboardMarkup(resize_keyboard = True)
 	free_signals_btn = types.KeyboardButton(btn.free_signals)
 	vip_signals_btn = types.KeyboardButton(btn.vip_signals)
-	my_balance_btn = types.KeyboardButton(btn.my_balance)
-	my_wallet_btn = types.KeyboardButton(btn.my_wallet)
-	keyboard.add(my_balance_btn)
-	keyboard.add(my_wallet_btn)
+	balance_and_wallet_btn = types.KeyboardButton(btn.balance_and_wallet)
+	keyboard.add(balance_and_wallet_btn)
 	keyboard.add(free_signals_btn, vip_signals_btn)
 	bot.send_message(uid(m), msg.select_action, reply_markup = keyboard, parse_mode = 'Markdown')	
 
@@ -317,11 +312,9 @@ def start(m):
 	keyboard = types.ReplyKeyboardMarkup(resize_keyboard = True)
 	free_signals_btn = types.KeyboardButton(btn.free_signals)
 	vip_signals_btn = types.KeyboardButton(btn.vip_signals)
-	my_balance_btn = types.KeyboardButton(btn.my_balance)
-	my_wallet_btn = types.KeyboardButton(btn.my_wallet)
+	balance_and_wallet_btn = types.KeyboardButton(btn.balance_and_wallet)
 	referal_btn = types.KeyboardButton(btn.referal)
-	keyboard.add(my_balance_btn)
-	keyboard.add(my_wallet_btn)
+	keyboard.add(balance_and_wallet_btn)
 	keyboard.add(referal_btn)
 	keyboard.add(free_signals_btn, vip_signals_btn)
 	bot.send_message(uid(m), msg.start, reply_markup = keyboard, parse_mode = "Markdown")
