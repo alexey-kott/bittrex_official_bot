@@ -103,7 +103,7 @@ class Msg():
 
 		self.repare = 'Оплата пока на ремонте. Скоро всё будет'
 
-		self.access_granted = '''Оплата произведена. Теперь чат доступен для Вас по ссылке https://t.me/joinchat/AFktb0KnIkcf5RrPM-uLQA
+		self.access_granted = '''Оплата произведена. Теперь чат доступен для Вас по ссылке https://t.me/vip_signal_Bittrex
 		Доступ оплачен до {} {}, {}
 		'''
 
