@@ -326,7 +326,7 @@ def show_users(m):
 		user_list = ''
 		for u in User.select():
 			user_raw = "{} @{} {}\n".format(u.first_name, u.username, u.last_name)
-			user_raw = re.sub(r'@\s', '', user_raw)
+			user_raw = re.sub(r'(@None\s)|(\sNone)', '', user_raw)
 			user_list += user_raw
 		bot.send_message(uid(m), user_list)
 	
