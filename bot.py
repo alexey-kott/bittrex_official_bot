@@ -333,6 +333,7 @@ def show_users(m):
 
 @bot.message_handler(content_types = ['new_chat_members'])
 def new_member(m):
+	bot.delete_message(sid(m), m.message_id)
 	user_id = m.new_chat_member.id
 	if user_id in admins:
 		return True
@@ -343,6 +344,10 @@ def new_member(m):
 	except:
 		bot.kick_chat_member(private_chat_id, user_id)
 
+
+@bot.message_handler(content_types = ['left_chat_member'])
+def left_member(m):
+	bot.delete_message(sid(m), m.message_id)
 
 
 
