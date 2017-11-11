@@ -318,6 +318,17 @@ def start(m):
 	keyboard.add(referal_btn)
 	keyboard.add(free_signals_btn, vip_signals_btn)
 	bot.send_message(uid(m), msg.start, reply_markup = keyboard, parse_mode = "Markdown")
+
+
+@bot.message_handler(commands = ['users'])
+def show_users(m):
+	if uid(m) in admins:
+		user_list = ''
+		for u in User.select():
+			user_raw = "{} @{} {}\n".format(u.first_name, u.username, u.last_name)
+			user_raw = re.sub(r'@\s', '', user_raw)
+			user_list += user_raw
+		bot.send_message(uid(m), user_list)
 	
 
 @bot.message_handler(content_types = ['new_chat_members'])

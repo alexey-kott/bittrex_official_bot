@@ -23,8 +23,8 @@ class Routing(BaseModel):
 
 class Btn():
 	def __init__(self):
-		self.free_signals 		= "Сигналы FREE"
-		self.vip_signals		= "👑 VIP  👑"
+		self.free_signals 		= "🗣️Переговорная 🗣️"
+		self.vip_signals		= "👑Подписка👑"
 		self.balance_and_wallet	= "💰Мой кошелёк 🏦"
 		self.referal 			= "🔄💰 Реферальная программа 🔄💳"
 		self.three_days 		= "3 дня за {} Btc".format(price['3_days'])
