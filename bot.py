@@ -199,11 +199,11 @@ def get_default_keyboard():
 # messages
 
 def free_signals(u, m):
-	bot.send_message(uid(m), msg.free_signals, reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
+	bot.send_message(uid(m), msg.free_signals, reply_markup = get_default_keyboard())
 
 
 def vip_signals(u, m):
-	bot.send_message(uid(m), msg.vip_signals, reply_markup = get_default_keyboard(), parse_mode = 'Markdown')
+	bot.send_message(uid(m), msg.vip_signals, reply_markup = get_default_keyboard())
 
 
 def my_balance(u, m):
@@ -366,7 +366,7 @@ def action(m):
 		r = Routing.select(Routing.btn, Routing.action).where(Routing.btn == m.text).get()
 		eval(r.action)(u, m)
 	except Exception as e:
-		# print(e)
+		print(e)
 		pass
 
 

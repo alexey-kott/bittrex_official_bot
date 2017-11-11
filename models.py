@@ -23,7 +23,7 @@ class Routing(BaseModel):
 
 class Btn():
 	def __init__(self):
-		self.free_signals 		= "🗣️Переговорная 🗣️"
+		self.free_signals 		= "🗣Переговорная🗣"
 		self.vip_signals		= "👑Подписка👑"
 		self.balance_and_wallet	= "💰Мой кошелёк 🏦"
 		self.referal 			= "🔄💰 Реферальная программа 🔄💳"
