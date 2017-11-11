@@ -82,7 +82,7 @@ class Msg():
 		NXC 80%; BRK 107%; SNRG 70%; HKG 70%; GLD 70%; NEO168%; DAR 91%; QWARK 176%; XCP 85%; GCR 60%; THC 53%; XRP 62%; FLDC 77%; LSK 157%; QTUM 67%; MCO 102%; XVG 78%; KORE 330%; OMG 102%; PTOY 76%; NEO 73%; IOP 54%; ZEC 101%; ADX 117%; XLM 83%
 		Присоединяйтесь к группе Профессионалов и наращивайте количество Биткойна на своем счету. 
 			
-		Ссылка: https://t.me/joinchat/Fxl6JkOKhf6kwLxnzCyJkg 
+		Ссылка: https://t.me/pump_inside 
 		'''
 
 		self.vip_signals = '''
