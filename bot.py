@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import locale
 from time import sleep
 import datetime
@@ -396,5 +397,5 @@ if __name__ == '__main__':
 		try:
 			bot.polling(none_stop=True)
 		except Exception as e:
-			print(e)
+			# print(e)
 			sleep(3.5)
